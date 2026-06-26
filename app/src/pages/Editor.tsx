@@ -3,10 +3,10 @@ import { useParams, useNavigate } from 'react-router'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
-import Underline from '@tiptap/extension-underline'
+import UnderlineExtension from '@tiptap/extension-underline'
 import TextAlign from '@tiptap/extension-text-align'
-import Superscript from '@tiptap/extension-superscript'
-import Table from '@tiptap/extension-table'
+import SuperscriptExtension from '@tiptap/extension-superscript'
+import TableExtension from '@tiptap/extension-table'
 import TableRow from '@tiptap/extension-table-row'
 import TableCell from '@tiptap/extension-table-cell'
 import TableHeader from '@tiptap/extension-table-header'
@@ -215,10 +215,10 @@ export default function Editor() {
       }),
       Placeholder.configure({ placeholder: 'Commencez à rédiger votre mémoire ici...' }),
       CommentHighlight,
-      Underline,
+      UnderlineExtension,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      Superscript,
-      Table.configure({ resizable: true }),
+      SuperscriptExtension,
+      TableExtension.configure({ resizable: true }),
       TableRow,
       TableCell,
       TableHeader,
