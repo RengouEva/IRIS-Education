@@ -7,6 +7,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { initDatabase } from './database.js'
 import multer from 'multer'
+import { uploadFile, isUsingBlob, getLocalUploadsPath } from './storage.js'
 
 import authRoutes from './routes/auth.js'
 import projectRoutes from './routes/projects.js'
@@ -41,54 +42,38 @@ app.use(limiter)
 app.use(cors({ origin: CORS_ORIGINS, credentials: true }))
 app.use(express.json({ limit: '50mb' }))
 
-const audioStorage = multer.diskStorage({
-  destination: path.join(__dirname, '..', 'uploads', 'audio'),
-  filename: (_req, file, cb) => {
-    const ext = file.mimetype === 'audio/webm' ? '.webm' : '.ogg'
-    cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`)
-  },
-})
-const uploadAudio = multer({
-  storage: audioStorage,
+const upload = multer({
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    if (file.mimetype.startsWith('audio/')) cb(null, true)
-    else cb(new Error('Format audio non supporté'))
-  },
 })
 
-app.post('/api/upload/audio', uploadAudio.single('audio'), (req, res) => {
+app.post('/api/upload/audio', upload.single('audio'), async (req, res) => {
   if (!req.file) { res.status(400).json({ error: 'Fichier audio requis' }); return }
-  const url = `/uploads/audio/${req.file.filename}`
-  res.json({ url, filename: req.file.filename })
+  const ext = req.file.mimetype === 'audio/webm' ? '.webm' : '.ogg'
+  const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`
+  try {
+    const url = await uploadFile(req.file.buffer, filename, 'audio')
+    res.json({ url, filename })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
+  }
 })
 
-const imageStorage = multer.diskStorage({
-  destination: path.join(__dirname, '..', 'uploads', 'images'),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname) || '.jpg'
-    cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`)
-  },
-})
-const uploadImage = multer({
-  storage: imageStorage,
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) cb(null, true)
-    else cb(new Error('Format image non supporté'))
-  },
+app.post('/api/upload/image', upload.single('image'), async (req, res) => {
+  if (!req.file) { res.status(400).json({ error: 'Fichier image requis' }); return }
+  const ext = path.extname(req.file.originalname) || '.jpg'
+  const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`
+  try {
+    const url = await uploadFile(req.file.buffer, filename, 'images')
+    res.json({ url, filename })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
+  }
 })
 
-app.post('/api/upload/image', (req, res) => {
-  uploadImage.single('image')(req, res, (err) => {
-    if (err) { res.status(400).json({ error: err.message }); return }
-    if (!req.file) { res.status(400).json({ error: 'Fichier image requis' }); return }
-    const url = `/uploads/images/${req.file.filename}`
-    res.json({ url, filename: req.file.filename })
-  })
-})
-
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')))
+if (!isUsingBlob()) {
+  app.use('/uploads', express.static(getLocalUploadsPath('')))
+}
 app.use('/images', express.static(path.join(__dirname, '..', '..', 'app', 'public', 'images')))
 
 app.use('/api/auth', authRoutes)
