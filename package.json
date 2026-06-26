@@ -1,0 +1,8 @@
+{
+  "name": "iris-education",
+  "private": true,
+  "scripts": {
+    "build": "cd app && npm run build",
+    "dev": "cd app && npm run dev"
+  }
+}

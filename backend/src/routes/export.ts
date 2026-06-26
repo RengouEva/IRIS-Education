@@ -7,22 +7,22 @@ import { Document, Packer, Paragraph, TextRun, HeadingLevel, TableOfContents, Al
 const router = Router()
 router.use(authMiddleware)
 
-router.get('/:projectId', (req: Request, res: Response) => {
-  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.projectId) as any
+router.get('/:projectId', async (req: Request, res: Response) => {
+  const project = await db.get('SELECT * FROM projects WHERE id = ?', req.params.projectId) as any
   if (!project || project.userId !== req.user!.userId) {
     res.status(404).json({ error: 'Projet non trouvé' })
     return
   }
 
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(project.userId) as any
-  const sections = db.prepare('SELECT * FROM sections WHERE projectId = ? ORDER BY orderIndex').all(project.id) as any[]
-  const refs = db.prepare(`
-    SELECT r.*, GROUP_CONCAT(ra.firstname || ' ' || ra.lastname, ', ') as authorsStr
+  const user = await db.get('SELECT * FROM users WHERE id = ?', project.userId) as any
+  const sections = await db.all('SELECT * FROM sections WHERE projectId = ? ORDER BY orderIndex', project.id) as any[]
+  const refs = await db.all(`
+    SELECT r.*, STRING_AGG(ra.firstname || ' ' || ra.lastname, ', ') as "authorsStr"
     FROM references_table r
     LEFT JOIN reference_authors ra ON ra.referenceId = r.id
     WHERE r.projectId = ?
     GROUP BY r.id
-  `).all(project.id) as any[]
+  `, project.id) as any[]
 
   const coverHtml = generateCoverHtml(project.id) || ''
 
@@ -76,8 +76,8 @@ router.get('/:projectId', (req: Request, res: Response) => {
   res.send(html)
 })
 
-router.get('/:projectId/cover', (req: Request, res: Response) => {
-  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.projectId) as any
+router.get('/:projectId/cover', async (req: Request, res: Response) => {
+  const project = await db.get('SELECT * FROM projects WHERE id = ?', req.params.projectId) as any
   if (!project || project.userId !== req.user!.userId) {
     res.status(404).json({ error: 'Projet non trouvé' })
     return
@@ -94,20 +94,20 @@ router.get('/:projectId/cover', (req: Request, res: Response) => {
 })
 
 router.get('/:projectId/docx', async (req: Request, res: Response) => {
-  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.projectId) as any
+  const project = await db.get('SELECT * FROM projects WHERE id = ?', req.params.projectId) as any
   if (!project || project.userId !== req.user!.userId) {
     res.status(404).json({ error: 'Projet non trouvé' }); return
   }
 
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(project.userId) as any
-  const sections = db.prepare('SELECT * FROM sections WHERE projectId = ? ORDER BY orderIndex').all(project.id) as any[]
-  const refs = db.prepare(`
-    SELECT r.*, GROUP_CONCAT(ra.firstname || ' ' || ra.lastname, ', ') as authorsStr
+  const user = await db.get('SELECT * FROM users WHERE id = ?', project.userId) as any
+  const sections = await db.all('SELECT * FROM sections WHERE projectId = ? ORDER BY orderIndex', project.id) as any[]
+  const refs = await db.all(`
+    SELECT r.*, STRING_AGG(ra.firstname || ' ' || ra.lastname, ', ') as "authorsStr"
     FROM references_table r
     LEFT JOIN reference_authors ra ON ra.referenceId = r.id
     WHERE r.projectId = ?
     GROUP BY r.id
-  `).all(project.id) as any[]
+  `, project.id) as any[]
 
   const children: any[] = []
 

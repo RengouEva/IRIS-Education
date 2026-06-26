@@ -22,7 +22,7 @@ import shareRoutes from './routes/shares.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-initDatabase()
+await initDatabase()
 
 const app = express()
 const PORT = process.env.PORT || 4000
@@ -103,8 +103,8 @@ app.use('/api/ai', aiRoutes)
 app.use('/api/notifications', notificationRoutes)
 app.use('/api/shares', shareRoutes)
 
-app.get('/api/universities', (_req, res) => {
-  const universities = db.prepare('SELECT * FROM universities ORDER BY name').all()
+app.get('/api/universities', async (_req, res) => {
+  const universities = await db.all('SELECT * FROM universities ORDER BY name')
   res.json(universities)
 })
 
@@ -112,6 +112,15 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
 
-app.listen(PORT, () => {
-  console.log(`IRIS-Education API running on http://localhost:${PORT}`)
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('Unhandled error:', err)
+  res.status(500).json({ error: 'Erreur interne du serveur' })
 })
+
+if (process.env.VERCEL !== '1') {
+  app.listen(PORT, () => {
+    console.log(`IRIS-Education API running on http://localhost:${PORT}`)
+  })
+}
+
+export default app

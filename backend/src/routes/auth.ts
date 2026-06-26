@@ -21,14 +21,14 @@ const registerSchema = z.object({
   universityId: z.string().optional(),
 })
 
-router.post('/login', (req: Request, res: Response) => {
+router.post('/login', async (req: Request, res: Response) => {
   const parsed = loginSchema.safeParse(req.body)
   if (!parsed.success) {
     res.status(400).json({ error: 'Données invalides', details: parsed.error.issues })
     return
   }
   const { email, password } = parsed.data
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as any
+  const user = await db.get('SELECT * FROM users WHERE email = ?', email) as any
   if (!user || !bcrypt.compareSync(password, user.password)) {
     res.status(401).json({ error: 'Email ou mot de passe incorrect' })
     return
@@ -38,23 +38,24 @@ router.post('/login', (req: Request, res: Response) => {
   res.json({ token, user: userData })
 })
 
-router.post('/register', (req: Request, res: Response) => {
+router.post('/register', async (req: Request, res: Response) => {
   const parsed = registerSchema.safeParse(req.body)
   if (!parsed.success) {
     res.status(400).json({ error: 'Données invalides', details: parsed.error.issues })
     return
   }
   const { firstname, lastname, email, password, role, universityId } = parsed.data
-  const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email) as any
+  const existing = await db.get('SELECT id FROM users WHERE email = ?', email) as any
   if (existing) {
     res.status(409).json({ error: 'Cet email est déjà utilisé' })
     return
   }
   const id = crypto.randomUUID()
   const hashed = bcrypt.hashSync(password, 10)
-  db.prepare(
-    'INSERT INTO users (id, firstname, lastname, email, password, role, universityId) VALUES (?, ?, ?, ?, ?, ?, ?)'
-  ).run(id, firstname, lastname, email, hashed, role, universityId || null)
+  await db.run(
+    'INSERT INTO users (id, firstname, lastname, email, password, role, universityId) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    id, firstname, lastname, email, hashed, role, universityId || null
+  )
   const token = generateToken({ userId: id, role })
   res.status(201).json({
     token,
@@ -62,8 +63,8 @@ router.post('/register', (req: Request, res: Response) => {
   })
 })
 
-router.get('/me', authMiddleware, (req: Request, res: Response) => {
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user!.userId) as any
+router.get('/me', authMiddleware, async (req: Request, res: Response) => {
+  const user = await db.get('SELECT * FROM users WHERE id = ?', req.user!.userId) as any
   if (!user) {
     res.status(404).json({ error: 'Utilisateur non trouvé' })
     return
@@ -80,7 +81,7 @@ const updateProfileSchema = z.object({
   avatar: z.string().optional(),
 })
 
-router.put('/me', authMiddleware, (req: Request, res: Response) => {
+router.put('/me', authMiddleware, async (req: Request, res: Response) => {
   const parsed = updateProfileSchema.safeParse(req.body)
   if (!parsed.success) {
     res.status(400).json({ error: 'Données invalides', details: parsed.error.issues })
@@ -97,9 +98,9 @@ router.put('/me', authMiddleware, (req: Request, res: Response) => {
   }
   if (updates.length > 0) {
     values.push(req.user!.userId)
-    db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).run(...values)
+    await db.run(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, ...values)
   }
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user!.userId) as any
+  const user = await db.get('SELECT * FROM users WHERE id = ?', req.user!.userId) as any
   const { password: _, ...userData } = user
   res.json(userData)
 })

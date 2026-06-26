@@ -6,29 +6,29 @@ import crypto from 'crypto'
 
 const router = Router()
 
-router.get('/', (_req: Request, res: Response) => {
-  const templates = db.prepare('SELECT * FROM templates ORDER BY createdAt DESC').all() as any[]
-  const result = templates.map((t: any) => {
-    const sections = db.prepare('SELECT * FROM template_default_sections WHERE templateId = ? ORDER BY orderIndex').all(t.id) as any[]
+router.get('/', async (_req: Request, res: Response) => {
+  const templates = await db.all('SELECT * FROM templates ORDER BY createdAt DESC') as any[]
+  const result = await Promise.all(templates.map(async (t: any) => {
+    const sections = await db.all('SELECT * FROM template_default_sections WHERE templateId = ? ORDER BY orderIndex', t.id) as any[]
     return {
       ...t,
-      defaultSections: sections.map((s: any) => {
-        const subs = db.prepare('SELECT * FROM template_default_subsections WHERE defaultSectionId = ? ORDER BY orderIndex').all(s.id) as any[]
+      defaultSections: await Promise.all(sections.map(async (s: any) => {
+        const subs = await db.all('SELECT * FROM template_default_subsections WHERE defaultSectionId = ? ORDER BY orderIndex', s.id) as any[]
         return { ...s, subsections: subs.map((ss: any) => ({ title: ss.title })) }
-      }),
+      })),
     }
-  })
+  }))
   res.json(result)
 })
 
-router.get('/:id', (req: Request, res: Response) => {
-  const template = db.prepare('SELECT * FROM templates WHERE id = ?').get(req.params.id) as any
+router.get('/:id', async (req: Request, res: Response) => {
+  const template = await db.get('SELECT * FROM templates WHERE id = ?', req.params.id) as any
   if (!template) { res.status(404).json({ error: 'Template non trouvé' }); return }
-  const sections = db.prepare('SELECT * FROM template_default_sections WHERE templateId = ? ORDER BY orderIndex').all(template.id) as any[]
-  template.defaultSections = sections.map((s: any) => {
-    const subs = db.prepare('SELECT * FROM template_default_subsections WHERE defaultSectionId = ? ORDER BY orderIndex').all(s.id) as any[]
+  const sections = await db.all('SELECT * FROM template_default_sections WHERE templateId = ? ORDER BY orderIndex', template.id) as any[]
+  template.defaultSections = await Promise.all(sections.map(async (s: any) => {
+    const subs = await db.all('SELECT * FROM template_default_subsections WHERE defaultSectionId = ? ORDER BY orderIndex', s.id) as any[]
     return { ...s, subsections: subs.map((ss: any) => ({ title: ss.title })) }
-  })
+  }))
   res.json(template)
 })
 
@@ -44,29 +44,29 @@ const templateSchema = z.object({
   })).default([]),
 })
 
-router.post('/', authMiddleware, adminMiddleware, (req: Request, res: Response) => {
+router.post('/', authMiddleware, adminMiddleware, async (req: Request, res: Response) => {
   const parsed = templateSchema.safeParse(req.body)
   if (!parsed.success) { res.status(400).json({ error: 'Données invalides', details: parsed.error.issues }); return }
   const { name, level, description, image, defaultSections } = parsed.data
   const id = crypto.randomUUID()
-  db.prepare('INSERT INTO templates (id, name, level, description, image) VALUES (?, ?, ?, ?, ?)')
-    .run(id, name, level, description, image)
+  await db.run('INSERT INTO templates (id, name, level, description, image) VALUES (?, ?, ?, ?, ?)',
+    id, name, level, description, image)
   for (let i = 0; i < defaultSections.length; i++) {
     const ds = defaultSections[i]
     const sectionId = crypto.randomUUID()
-    db.prepare('INSERT INTO template_default_sections (id, templateId, title, type, orderIndex) VALUES (?, ?, ?, ?, ?)')
-      .run(sectionId, id, ds.title, ds.type, i)
+    await db.run('INSERT INTO template_default_sections (id, templateId, title, type, orderIndex) VALUES (?, ?, ?, ?, ?)',
+      sectionId, id, ds.title, ds.type, i)
     for (let j = 0; j < ds.subsections.length; j++) {
-      db.prepare('INSERT INTO template_default_subsections (id, defaultSectionId, title, orderIndex) VALUES (?, ?, ?, ?)')
-        .run(crypto.randomUUID(), sectionId, ds.subsections[j].title, j)
+      await db.run('INSERT INTO template_default_subsections (id, defaultSectionId, title, orderIndex) VALUES (?, ?, ?, ?)',
+        crypto.randomUUID(), sectionId, ds.subsections[j].title, j)
     }
   }
-  const created = db.prepare('SELECT * FROM templates WHERE id = ?').get(id)
+  const created = await db.get('SELECT * FROM templates WHERE id = ?', id)
   res.status(201).json(created)
 })
 
-router.put('/:id', authMiddleware, adminMiddleware, (req: Request, res: Response) => {
-  const existing = db.prepare('SELECT * FROM templates WHERE id = ?').get(req.params.id) as any
+router.put('/:id', authMiddleware, adminMiddleware, async (req: Request, res: Response) => {
+  const existing = await db.get('SELECT * FROM templates WHERE id = ?', req.params.id) as any
   if (!existing) { res.status(404).json({ error: 'Template non trouvé' }); return }
   const allowed = ['name', 'level', 'description', 'image']
   const updates: string[] = []
@@ -79,31 +79,31 @@ router.put('/:id', authMiddleware, adminMiddleware, (req: Request, res: Response
   }
   if (updates.length > 0) {
     values.push(req.params.id)
-    db.prepare(`UPDATE templates SET ${updates.join(', ')} WHERE id = ?`).run(...values)
+    await db.run(`UPDATE templates SET ${updates.join(', ')} WHERE id = ?`, ...values)
   }
   if (req.body.defaultSections) {
-    db.prepare('DELETE FROM template_default_sections WHERE templateId = ?').run(req.params.id)
+    await db.run('DELETE FROM template_default_sections WHERE templateId = ?', req.params.id)
     const sections = req.body.defaultSections as any[]
     for (let i = 0; i < sections.length; i++) {
       const ds = sections[i]
       const sectionId = crypto.randomUUID()
-      db.prepare('INSERT INTO template_default_sections (id, templateId, title, type, orderIndex) VALUES (?, ?, ?, ?, ?)')
-        .run(sectionId, req.params.id, ds.title, ds.type, i)
+      await db.run('INSERT INTO template_default_sections (id, templateId, title, type, orderIndex) VALUES (?, ?, ?, ?, ?)',
+        sectionId, req.params.id, ds.title, ds.type, i)
       const subs = ds.subsections || []
       for (let j = 0; j < subs.length; j++) {
-        db.prepare('INSERT INTO template_default_subsections (id, defaultSectionId, title, orderIndex) VALUES (?, ?, ?, ?)')
-          .run(crypto.randomUUID(), sectionId, subs[j].title, j)
+        await db.run('INSERT INTO template_default_subsections (id, defaultSectionId, title, orderIndex) VALUES (?, ?, ?, ?)',
+          crypto.randomUUID(), sectionId, subs[j].title, j)
       }
     }
   }
-  const updated = db.prepare('SELECT * FROM templates WHERE id = ?').get(req.params.id)
+  const updated = await db.get('SELECT * FROM templates WHERE id = ?', req.params.id)
   res.json(updated)
 })
 
-router.delete('/:id', authMiddleware, adminMiddleware, (req: Request, res: Response) => {
-  const existing = db.prepare('SELECT * FROM templates WHERE id = ?').get(req.params.id) as any
+router.delete('/:id', authMiddleware, adminMiddleware, async (req: Request, res: Response) => {
+  const existing = await db.get('SELECT * FROM templates WHERE id = ?', req.params.id) as any
   if (!existing) { res.status(404).json({ error: 'Template non trouvé' }); return }
-  db.prepare('DELETE FROM templates WHERE id = ?').run(req.params.id)
+  await db.run('DELETE FROM templates WHERE id = ?', req.params.id)
   res.json({ success: true })
 })
 

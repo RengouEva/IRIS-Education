@@ -25,15 +25,15 @@ interface CoverData {
   academicYear: string
 }
 
-function getCoverData(projectId: string): CoverData | null {
-  const project = db.prepare(`
+async function getCoverData(projectId: string): Promise<CoverData | null> {
+  const project = await db.get(`
     SELECT p.*, u.firstname as studentFirstname, u.lastname as studentLastname,
            uni.name as universityName, uni.logo, uni.cover_config
     FROM projects p
     JOIN users u ON u.id = p.userId
     LEFT JOIN universities uni ON uni.id = p.universityId
     WHERE p.id = ?
-  `).get(projectId) as any
+  `, projectId) as any
 
   if (!project) return null
 
@@ -72,8 +72,8 @@ function getCoverData(projectId: string): CoverData | null {
   }
 }
 
-export function generateCoverHtml(projectId: string): string | null {
-  const data = getCoverData(projectId)
+export async function generateCoverHtml(projectId: string): Promise<string | null> {
+  const data = await getCoverData(projectId)
   if (!data) return null
 
   const { universityName, logo, config, faculty, field, title, theme, studentFirstname, studentLastname, supervisor, academicYear } = data
