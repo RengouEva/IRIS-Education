@@ -1,5 +1,4 @@
 import { Routes, Route } from 'react-router'
-import { Routes, Route } from 'react-router'
 import Landing from './pages/Landing'
 import Dashboard from './pages/Dashboard'
 import Editor from './pages/Editor'
