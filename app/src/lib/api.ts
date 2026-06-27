@@ -30,7 +30,8 @@ async function request<T = any>(path: string, options: RequestInit = {}): Promis
       }
     }
     const err = await res.json().catch(() => ({ error: res.statusText }))
-    throw new Error(err.error || 'Erreur serveur')
+    const errorMsg = err.debug ? `${err.error} (${err.debug})` : (err.error || 'Erreur serveur')
+    throw new Error(errorMsg)
   }
   return res.json()
 }

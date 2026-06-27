@@ -43,6 +43,7 @@ export default function Register() {
         navigate('/login?registered=1')
       }
     } catch (err: any) {
+      console.error('Register error details:', err)
       setError(err.message || 'Une erreur est survenue lors de l\'inscription')
     } finally {
       setLoading(false)

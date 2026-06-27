@@ -77,8 +77,12 @@ router.post('/register', async (req: Request, res: Response) => {
       })
     }
   } catch (err) {
-    console.error('Register error:', err)
-    res.status(500).json({ error: 'Erreur serveur. Veuillez réessayer.' })
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('Register error:', message, err instanceof Error ? err.stack : '')
+    res.status(500).json({
+      error: 'Erreur serveur. Veuillez réessayer.',
+      debug: process.env.NODE_ENV !== 'production' ? message : undefined,
+    })
   }
 })
 
