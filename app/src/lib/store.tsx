@@ -47,21 +47,13 @@ function loadUser(): User | null {
   return null
 }
 
-const guestUser: User = {
-  id: 'guest',
-  firstname: 'Invité',
-  lastname: '',
-  email: 'guest@iris-education.app',
-  role: 'student',
-}
-
-if (!localStorage.getItem('iris_token')) {
-  localStorage.setItem('iris_token', 'guest-token')
-  localStorage.setItem('iris_user', JSON.stringify(guestUser))
+function hasToken(): boolean {
+  const token = localStorage.getItem('iris_token')
+  return !!token && token !== 'guest-token'
 }
 
 export const initialState: AppState = {
-  user: loadUser() || guestUser,
+  user: hasToken() ? loadUser() : null,
   projects: [],
   currentProject: null,
   aiMessages: [],
@@ -70,7 +62,7 @@ export const initialState: AppState = {
   sidebarCollapsed: false,
   rightPanelTab: 'structure',
   aiEnabled: true,
-  isAuthenticated: true,
+  isAuthenticated: hasToken(),
 }
 
 export function appReducer(state: AppState, action: Action): AppState {
@@ -109,7 +101,8 @@ export function appReducer(state: AppState, action: Action): AppState {
     case 'LOGOUT':
       localStorage.removeItem('iris_token')
       localStorage.removeItem('iris_user')
-      return { ...state, isAuthenticated: false, user: null }
+      localStorage.removeItem('guest-token')
+      return { ...state, isAuthenticated: false, user: null, projects: [], currentProject: null }
     case 'UPDATE_SECTION': {
       const updated = state.projects.map((p) => {
         if (p.id !== action.projectId) return p

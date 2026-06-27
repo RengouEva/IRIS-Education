@@ -22,6 +22,13 @@ async function request<T = any>(path: string, options: RequestInit = {}): Promis
 
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers })
   if (!res.ok) {
+    if (res.status === 401) {
+      clearToken()
+      localStorage.removeItem('iris_user')
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login'
+      }
+    }
     const err = await res.json().catch(() => ({ error: res.statusText }))
     throw new Error(err.error || 'Erreur serveur')
   }
@@ -98,6 +105,8 @@ export const api = {
 
   logout() {
     clearToken()
+    localStorage.removeItem('iris_user')
+    localStorage.removeItem('guest-token')
   },
 
   getToken() {

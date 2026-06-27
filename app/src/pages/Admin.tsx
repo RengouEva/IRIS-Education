@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import { api } from '@/lib/api'
+import { useStore } from '@/lib/store'
 import {
   LayoutDashboard, FileText, Users, BookOpen, Settings, LogOut, Plus, Pencil, Trash2,
   GraduationCap, Building2, BarChart3, ChevronLeft, Check, X, Loader2,
@@ -10,16 +11,17 @@ type Tab = 'dashboard' | 'templates' | 'users' | 'universities' | 'config' | 'pr
 
 export default function Admin() {
   const navigate = useNavigate()
+  const { state } = useStore()
   const [tab, setTab] = useState<Tab>('dashboard')
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<any>(state.user)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    setLoading(false)
+    api.me().then(setUser).catch(() => setUser(null)).finally(() => setLoading(false))
   }, [])
 
   if (loading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="w-8 h-8 animate-spin text-amber-600" /></div>
-  if (!user) return null
+  if (!user || user.role !== 'admin') return <div className="flex items-center justify-center min-h-screen text-zinc-400">Accès refusé</div>
 
   return (
     <div className="flex h-screen bg-zinc-950 text-zinc-100">

@@ -44,6 +44,24 @@ export default function Dashboard() {
   const userId = user?.id
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
+  const [menuOpen, setMenuOpen] = React.useState(false)
+  const menuRef = React.useRef<HTMLDivElement>(null)
+
+  React.useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const handleLogout = () => {
+    api.logout()
+    dispatch({ type: 'LOGOUT' })
+    navigate('/')
+  }
 
   useEffect(() => {
     if (!api.isAuthenticated()) { setLoading(false); return }
@@ -132,12 +150,36 @@ export default function Dashboard() {
               />
             </div>
             <NotificationBell />
-            <div className="flex items-center gap-2">
-              <img
-                src={user?.avatar || '/images/avatar-user-1.jpg'}
-                alt={user?.firstname}
-                className="w-8 h-8 rounded-full object-cover"
-              />
+            <div className="relative" ref={menuRef}>
+              <button onClick={() => setMenuOpen(!menuOpen)} className="flex items-center gap-2 focus:outline-none">
+                <img
+                  src={user?.avatar || '/images/avatar-user-1.jpg'}
+                  alt={user?.firstname}
+                  className="w-8 h-8 rounded-full object-cover cursor-pointer"
+                />
+              </button>
+              {menuOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-white border border-border-light rounded-xl shadow-lg py-1 z-50">
+                  <div className="px-4 py-2 border-b border-border-light">
+                    <p className="text-sm font-medium text-text-primary truncate">{user?.firstname} {user?.lastname}</p>
+                    <p className="text-xs text-text-muted truncate">{user?.email}</p>
+                  </div>
+                  <button onClick={() => { setMenuOpen(false); navigate('/settings') }}
+                    className="w-full text-left px-4 py-2 text-sm text-text-primary hover:bg-gray-50 transition-colors">
+                    Paramètres
+                  </button>
+                  {user?.role === 'admin' && (
+                    <button onClick={() => { setMenuOpen(false); navigate('/admin') }}
+                      className="w-full text-left px-4 py-2 text-sm text-text-primary hover:bg-gray-50 transition-colors">
+                      Administration
+                    </button>
+                  )}
+                  <button onClick={handleLogout}
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors border-t border-border-light">
+                    Déconnexion
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </header>
