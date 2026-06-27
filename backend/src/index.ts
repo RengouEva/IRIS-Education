@@ -101,8 +101,13 @@ app.get('/api/universities', async (_req, res) => {
   res.json(universities)
 })
 
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() })
+app.get('/api/health', async (_req, res) => {
+  try {
+    const result = await db.get('SELECT 1 as alive')
+    res.json({ status: 'ok', db: result?.alive === 1 ? 'connected' : 'error', timestamp: new Date().toISOString() })
+  } catch (err: any) {
+    res.json({ status: 'degraded', db: 'disconnected', error: err?.message || String(err), timestamp: new Date().toISOString() })
+  }
 })
 
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
