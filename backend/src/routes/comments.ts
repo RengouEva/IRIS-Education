@@ -1,8 +1,8 @@
 import { Router, Request, Response } from 'express'
 import { z } from 'zod'
-import db from '../database'
-import { authMiddleware } from '../middleware/auth'
-import { createNotification } from './notifications'
+import db from '../database.js'
+import { authMiddleware } from '../middleware/auth.js'
+import { createNotification } from './notifications.js'
 import crypto from 'crypto'
 
 const router = Router()

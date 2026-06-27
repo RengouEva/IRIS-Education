@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express'
-import db from '../database'
-import { authMiddleware } from '../middleware/auth'
-import { generateCoverHtml } from '../cover-generator'
+import db from '../database.js'
+import { authMiddleware } from '../middleware/auth.js'
+import { generateCoverHtml } from '../cover-generator.js'
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, TableOfContents, AlignmentType, PageBreak, Header, Footer, PageNumber, TabStopPosition, TabStopType } from 'docx'
 
 const router = Router()

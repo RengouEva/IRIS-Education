@@ -23,7 +23,15 @@ import shareRoutes from './routes/shares.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-await initDatabase()
+process.on('unhandledRejection', (reason) => {
+  console.error('UNHANDLED REJECTION — Function would have crashed:', reason)
+})
+
+try {
+  await initDatabase()
+} catch (err) {
+  console.error('Database init error:', err)
+}
 
 const app = express()
 const PORT = process.env.PORT || 4000

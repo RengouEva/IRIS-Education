@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express'
-import db from '../database'
-import { authMiddleware } from '../middleware/auth'
+import db from '../database.js'
+import { authMiddleware } from '../middleware/auth.js'
 import crypto from 'crypto'
 
 const router = Router()

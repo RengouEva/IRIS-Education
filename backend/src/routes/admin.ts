@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express'
-import db from '../database'
-import { authMiddleware, adminMiddleware } from '../middleware/auth'
+import db from '../database.js'
+import { authMiddleware, adminMiddleware } from '../middleware/auth.js'
 import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'

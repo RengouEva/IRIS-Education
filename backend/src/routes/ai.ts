@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express'
-import db from '../database'
+import db from '../database.js'
 import crypto from 'crypto'
-import { authMiddleware } from '../middleware/auth'
+import { authMiddleware } from '../middleware/auth.js'
 
 const router = Router()
 router.use(authMiddleware)
