@@ -87,7 +87,7 @@ export default function Login() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="marie.kouassi@universite.fr"
+                placeholder="exemple@universite.fr"
                 className="w-full text-sm border border-border-light rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-gold/30"
               />
             </div>
@@ -128,13 +128,7 @@ export default function Login() {
             </Link>
           </p>
 
-          <div className="mt-8 p-4 bg-brand-50 rounded-xl border border-brand-100">
-            <p className="text-xs text-brand-600 font-medium mb-1">Comptes de démonstration</p>
-            <p className="text-xs text-brand-400">
-              Admin : admin@iris.edu / admin123<br />
-              Étudiant : marie.kouassi@univ.fr / password123
-            </p>
-          </div>
+
         </div>
       </div>
     </div>

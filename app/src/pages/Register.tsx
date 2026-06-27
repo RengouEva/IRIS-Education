@@ -134,7 +134,7 @@ export default function Register() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="marie.kouassi@universite.fr"
+                placeholder="exemple@universite.fr"
                 className="w-full text-sm border border-border-light rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-gold/30"
               />
             </div>

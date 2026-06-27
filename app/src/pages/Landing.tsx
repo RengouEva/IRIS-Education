@@ -117,9 +117,7 @@ function Hero() {
             >
               Créer mon mémoire
             </button>
-            <button className="border border-white/30 text-white hover:bg-white/10 font-medium px-6 py-3 rounded-[10px] transition-colors h-12">
-              Voir la démo
-            </button>
+
           </div>
           <div ref={statsRef} className="hero-line flex flex-wrap items-center gap-4 pt-4">
             {stats.map((s, i) => (

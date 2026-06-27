@@ -20,6 +20,7 @@ import exportRoutes from './routes/export.js'
 import aiRoutes from './routes/ai.js'
 import notificationRoutes from './routes/notifications.js'
 import shareRoutes from './routes/shares.js'
+import paymentRoutes from './routes/payments.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -95,6 +96,7 @@ app.use('/api/export', exportRoutes)
 app.use('/api/ai', aiRoutes)
 app.use('/api/notifications', notificationRoutes)
 app.use('/api/shares', shareRoutes)
+app.use('/api/payments', paymentRoutes)
 
 app.get('/api/universities', async (_req, res) => {
   const universities = await db.all('SELECT * FROM universities ORDER BY name')

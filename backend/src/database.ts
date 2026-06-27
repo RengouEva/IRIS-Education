@@ -113,6 +113,11 @@ const pgSchema = `
     email TEXT UNIQUE NOT NULL, password TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'student' CHECK(role IN ('student','supervisor','admin')),
     avatar TEXT, universityId TEXT,
+    emailVerified INTEGER NOT NULL DEFAULT 0,
+    verificationToken TEXT, verificationTokenExpires TEXT,
+    resetToken TEXT, resetTokenExpires TEXT,
+    subscriptionStatus TEXT NOT NULL DEFAULT 'free' CHECK(subscriptionStatus IN ('free','basic','premium')),
+    subscriptionEndDate TEXT,
     createdAt TEXT NOT NULL DEFAULT (NOW())
   );
   CREATE TABLE IF NOT EXISTS universities (
@@ -213,6 +218,25 @@ const pgSchema = `
     status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','accepted','declined')),
     token TEXT NOT NULL, createdAt TEXT NOT NULL DEFAULT (NOW())
   );
+  CREATE TABLE IF NOT EXISTS subscriptions (
+    id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, price REAL NOT NULL,
+    currency TEXT NOT NULL DEFAULT 'FCFA', duration INTEGER NOT NULL DEFAULT 30,
+    features TEXT NOT NULL DEFAULT '{}', description TEXT DEFAULT ''
+  );
+  CREATE TABLE IF NOT EXISTS payments (
+    id TEXT PRIMARY KEY, userId TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    amount REAL NOT NULL, currency TEXT NOT NULL DEFAULT 'FCFA',
+    provider TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending'
+      CHECK(status IN ('pending','confirmed','failed','refunded')),
+    transactionId TEXT, reference TEXT NOT NULL, planName TEXT NOT NULL,
+    phone TEXT, metadata TEXT DEFAULT '{}',
+    createdAt TEXT NOT NULL DEFAULT (NOW()), confirmedAt TEXT
+  );
+  CREATE TABLE IF NOT EXISTS email_logs (
+    id TEXT PRIMARY KEY, recipient TEXT NOT NULL, subject TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'sent' CHECK(status IN ('sent','failed')),
+    error TEXT, createdAt TEXT NOT NULL DEFAULT (NOW())
+  );
 `
 
 const sqliteSchema = `
@@ -221,6 +245,11 @@ const sqliteSchema = `
     email TEXT UNIQUE NOT NULL, password TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'student' CHECK(role IN ('student','supervisor','admin')),
     avatar TEXT, universityId TEXT,
+    emailVerified INTEGER NOT NULL DEFAULT 0,
+    verificationToken TEXT, verificationTokenExpires TEXT,
+    resetToken TEXT, resetTokenExpires TEXT,
+    subscriptionStatus TEXT NOT NULL DEFAULT 'free' CHECK(subscriptionStatus IN ('free','basic','premium')),
+    subscriptionEndDate TEXT,
     createdAt TEXT NOT NULL DEFAULT (datetime('now'))
   );
   CREATE TABLE IF NOT EXISTS universities (
@@ -312,31 +341,57 @@ const sqliteSchema = `
     role TEXT NOT NULL CHECK(role IN ('user','assistant')),
     content TEXT NOT NULL, timestamp TEXT NOT NULL DEFAULT (datetime('now'))
   );
+  CREATE TABLE IF NOT EXISTS subscriptions (
+    id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, price REAL NOT NULL,
+    currency TEXT NOT NULL DEFAULT 'FCFA', duration INTEGER NOT NULL DEFAULT 30,
+    features TEXT NOT NULL DEFAULT '{}', description TEXT DEFAULT ''
+  );
+  CREATE TABLE IF NOT EXISTS payments (
+    id TEXT PRIMARY KEY, userId TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    amount REAL NOT NULL, currency TEXT NOT NULL DEFAULT 'FCFA',
+    provider TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending'
+      CHECK(status IN ('pending','confirmed','failed','refunded')),
+    transactionId TEXT, reference TEXT NOT NULL, planName TEXT NOT NULL,
+    phone TEXT, metadata TEXT DEFAULT '{}',
+    createdAt TEXT NOT NULL DEFAULT (datetime('now')), confirmedAt TEXT
+  );
+  CREATE TABLE IF NOT EXISTS email_logs (
+    id TEXT PRIMARY KEY, recipient TEXT NOT NULL, subject TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'sent' CHECK(status IN ('sent','failed')),
+    error TEXT, createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`
+
+const seedSubscriptions = `
+  INSERT INTO subscriptions (id, name, price, duration, features, description)
+  VALUES
+    ('free', 'Gratuit', 0, 9999, '{"projects": 1, "ai_credits": 5, "exports": false}', '1 projet, 5 crédits IA'),
+    ('basic', 'Basique', 5000, 30, '{"projects": 5, "ai_credits": 50, "exports": true}', '5 projets, 50 crédits IA, export PDF/Word'),
+    ('premium', 'Premium', 10000, 30, '{"projects": -1, "ai_credits": -1, "exports": true}', 'Projets illimités, IA illimitée, export + prioritaire')
+  ON CONFLICT (name) DO NOTHING;
 `
 
 export async function initDatabase() {
   if (process.env.DATABASE_URL) {
     await db.exec(pgSchema)
-    await db.exec(`CREATE TABLE IF NOT EXISTS project_collaborators (
-      id TEXT PRIMARY KEY, projectId TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-      userId TEXT, email TEXT NOT NULL,
-      role TEXT NOT NULL CHECK(role IN ('supervisor','student')),
-      status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','accepted','declined')),
-      token TEXT NOT NULL, createdAt TEXT NOT NULL DEFAULT (NOW())
-    )`)
+    await db.exec(seedSubscriptions)
   } else {
     const sqlite = db.raw() as any
     sqlite.exec(sqliteSchema)
     try { sqlite.exec(`ALTER TABLE comments ADD COLUMN audioUrl TEXT DEFAULT ''`) } catch {}
     try { sqlite.exec(`ALTER TABLE comment_replies ADD COLUMN audioUrl TEXT DEFAULT ''`) } catch {}
+    try { sqlite.exec(`ALTER TABLE users ADD COLUMN emailVerified INTEGER NOT NULL DEFAULT 0`) } catch {}
+    try { sqlite.exec(`ALTER TABLE users ADD COLUMN verificationToken TEXT`) } catch {}
+    try { sqlite.exec(`ALTER TABLE users ADD COLUMN verificationTokenExpires TEXT`) } catch {}
+    try { sqlite.exec(`ALTER TABLE users ADD COLUMN resetToken TEXT`) } catch {}
+    try { sqlite.exec(`ALTER TABLE users ADD COLUMN resetTokenExpires TEXT`) } catch {}
+    try { sqlite.exec(`ALTER TABLE users ADD COLUMN subscriptionStatus TEXT NOT NULL DEFAULT 'free'`) } catch {}
+    try { sqlite.exec(`ALTER TABLE users ADD COLUMN subscriptionEndDate TEXT`) } catch {}
     try {
-      sqlite.exec(`CREATE TABLE IF NOT EXISTS project_collaborators (
-        id TEXT PRIMARY KEY, projectId TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-        userId TEXT, email TEXT NOT NULL,
-        role TEXT NOT NULL CHECK(role IN ('supervisor','student')),
-        status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','accepted','declined')),
-        token TEXT NOT NULL, createdAt TEXT NOT NULL DEFAULT (datetime('now'))
-      )`)
+      sqlite.exec(`INSERT OR IGNORE INTO subscriptions (id, name, price, duration, features, description) VALUES
+        ('free', 'Gratuit', 0, 9999, '{"projects": 1, "ai_credits": 5, "exports": false}', '1 projet, 5 crédits IA'),
+        ('basic', 'Basique', 5000, 30, '{"projects": 5, "ai_credits": 50, "exports": true}', '5 projets, 50 crédits IA, export PDF/Word'),
+        ('premium', 'Premium', 10000, 30, '{"projects": -1, "ai_credits": -1, "exports": true}', 'Projets illimités, IA illimitée, export + prioritaire')`)
     } catch {}
   }
 }

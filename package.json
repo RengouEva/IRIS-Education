@@ -16,6 +16,7 @@
     "jsonwebtoken": "^9.0.2",
     "zod": "^4.3.5",
     "@vercel/blob": "^2.5.0",
-    "docx": "^9.7.1"
+    "docx": "^9.7.1",
+    "nodemailer": "^6.10.0"
   }
 }
