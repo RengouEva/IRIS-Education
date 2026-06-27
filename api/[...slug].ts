@@ -1,23 +1,15 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
-let handler: ((req: VercelRequest, res: VercelResponse) => Promise<void>) | null = null
-
-export default async function apiHandler(req: VercelRequest, res: VercelResponse) {
-  if (!handler) {
-    try {
-      const mod = await import('../backend/dist/index.js')
-      const app = mod.default
-      handler = (r: VercelRequest, s: VercelResponse) => {
-        app(r as any, s as any)
-      }
-    } catch (err: any) {
-      console.error('Handler init error:', err?.message || err)
-      res.status(500).json({
-        error: 'Erreur interne',
-        debug: err?.message || String(err),
-      })
-      return
-    }
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  try {
+    const app = (await import('../backend/dist/index.js')).default
+    app(req, res)
+  } catch (err: any) {
+    console.error('Handler error:', err?.message || err, err?.stack || '')
+    res.status(500).json({
+      error: 'Erreur interne',
+      message: err?.message || String(err),
+      stack: process.env.NODE_ENV !== 'production' ? err?.stack : undefined,
+    })
   }
-  handler(req, res)
 }
