@@ -23,19 +23,21 @@ function convertSql(sql: string, params: any[]): string {
   return sql.replace(/\?/g, () => `$${++idx}`)
 }
 
-const errorDb: Db = {
-  async get(_sql, ..._params) { throw new Error('Base de données non initialisée') },
-  async all(_sql, ..._params) { throw new Error('Base de données non initialisée') },
-  async run(_sql, ..._params) { throw new Error('Base de données non initialisée') },
-  async exec(_sql) { throw new Error('Base de données non initialisée') },
-  async transaction(_fn) { throw new Error('Base de données non initialisée') },
-  close() {},
-  raw() { return null },
+function makeErrorDb(): Db {
+  return {
+    async get(_sql, ..._params) { throw new Error('Base de données non initialisée') },
+    async all(_sql, ..._params) { throw new Error('Base de données non initialisée') },
+    async run(_sql, ..._params) { throw new Error('Base de données non initialisée') },
+    async exec(_sql) { throw new Error('Base de données non initialisée') },
+    async transaction(_fn) { throw new Error('Base de données non initialisée') },
+    close() {},
+    raw() { return null },
+  }
 }
 
-try {
-  if (process.env.DATABASE_URL) {
-    const pg = await import('pg')
+if (process.env.DATABASE_URL) {
+  try {
+    const pg = await import('pg') as any
     const pool = new pg.default.Pool({ connectionString: process.env.DATABASE_URL, max: 10 })
 
     db = {
@@ -66,8 +68,13 @@ try {
       close() { pool.end() },
       raw() { return pool },
     }
-  } else {
-    const { default: Database } = await import('better-sqlite3')
+  } catch (err) {
+    console.error('Database initialization error (pg):', err)
+    db = makeErrorDb()
+  }
+} else {
+  try {
+    const Database = (await import('better-sqlite3')).default as any
 
     const sqliteDb = new Database(path.join(__dirname, '..', 'data.db'))
     sqliteDb.pragma('journal_mode = WAL')
@@ -94,10 +101,10 @@ try {
       close() { sqliteDb.close() },
       raw() { return sqliteDb },
     }
+  } catch (err) {
+    console.error('Database initialization error (sqlite):', err)
+    db = makeErrorDb()
   }
-} catch (err) {
-  console.error('Database initialization error:', err)
-  db = errorDb
 }
 
 const pgSchema = `
