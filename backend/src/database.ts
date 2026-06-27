@@ -23,7 +23,15 @@ function convertSql(sql: string, params: any[]): string {
 
 let _dbInitialized = false
 export function isDbInitialized() { return _dbInitialized }
-export function getDbStatus() { return { initialized: _dbInitialized, url: process.env.DATABASE_URL ? 'set' : 'not set' } }
+export function getDbStatus() {
+  return {
+    initialized: _dbInitialized,
+    url: process.env.DATABASE_URL ? 'set' : 'not set',
+    postgresUrl: process.env.POSTGRES_URL ? 'set' : 'not set',
+    postgresPrismaUrl: process.env.POSTGRES_PRISMA_URL ? 'set' : 'not set',
+    vercelEnv: process.env.VERCEL || 'not set',
+  }
+}
 
 function makeErrorDb(): Db {
   return {
@@ -39,11 +47,17 @@ function makeErrorDb(): Db {
 
 let db: Db = makeErrorDb()
 
-if (process.env.DATABASE_URL && process.env.DATABASE_URL.trim()) {
+const DATABASE_URL =
+  process.env.DATABASE_URL ||
+  process.env.POSTGRES_URL ||
+  process.env.POSTGRES_URL_NON_POOLING ||
+  ''
+
+if (DATABASE_URL && DATABASE_URL.trim()) {
   try {
     console.log('Database: connecting to PostgreSQL...')
     const pg = await import('pg') as any
-    const pool = new pg.default.Pool({ connectionString: process.env.DATABASE_URL, max: 5, connectionTimeoutMillis: 10000 })
+    const pool = new pg.default.Pool({ connectionString: DATABASE_URL, max: 5, connectionTimeoutMillis: 10000 })
 
     db = {
       async get(sql, ...params) {
@@ -79,13 +93,13 @@ if (process.env.DATABASE_URL && process.env.DATABASE_URL.trim()) {
     console.error('Database initialization error (pg):', err)
     db = makeErrorDb()
   }
-} else if (process.env.DATABASE_URL && !process.env.DATABASE_URL.trim()) {
+} else if (DATABASE_URL && !DATABASE_URL.trim()) {
   console.error('Database: DATABASE_URL is empty string')
 } else {
   console.log('Database: DATABASE_URL not set, local dev mode')
 }
 
-if (!_dbInitialized && !process.env.DATABASE_URL) {
+if (!_dbInitialized && !DATABASE_URL) {
   try {
     const Database = (await import('better-sqlite3')).default as any
     const sqliteDb = new Database(path.join(__dirname, '..', 'data.db'))
@@ -401,7 +415,7 @@ export async function initDatabase() {
     return
   }
   console.log('Database init: running schema...')
-  if (process.env.DATABASE_URL && process.env.DATABASE_URL.trim()) {
+  if (DATABASE_URL && DATABASE_URL.trim()) {
     await db.exec(pgSchema)
     try { await db.exec(pgMigrations) } catch (e) { console.error('Migration error (non-fatal):', e) }
     await db.exec(seedSubscriptions)
