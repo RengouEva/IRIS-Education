@@ -35,10 +35,10 @@
     "nodemailer": "^6.10.0",
     "pg": "^8.22.0",
     "typescript": "~5.9.3",
-    "zod": "^4.3.5"
+    "zod": "^4.3.5",
+    "@types/nodemailer": "^8.0.1"
   },
   "devDependencies": {
-    "@types/nodemailer": "^8.0.1",
     "tsx": "^4.19.0",
     "vitest": "^4.1.9"
   }
