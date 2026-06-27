@@ -82,12 +82,10 @@ export const api = {
   },
 
   async register(firstname: string, lastname: string, email: string, password: string, role?: string, universityId?: string) {
-    const data = await request<{ token: string; user: any }>('/auth/register', {
+    return request<{ message: string }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify({ firstname, lastname, email, password, role, universityId }),
     })
-    setToken(data.token)
-    return data
   },
 
   async me() {

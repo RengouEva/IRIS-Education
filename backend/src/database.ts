@@ -371,9 +371,20 @@ const seedSubscriptions = `
   ON CONFLICT (name) DO NOTHING;
 `
 
+const pgMigrations = `
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS emailVerified INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS verificationToken TEXT;
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS verificationTokenExpires TEXT;
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS resetToken TEXT;
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS resetTokenExpires TEXT;
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS subscriptionStatus TEXT NOT NULL DEFAULT 'free';
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS subscriptionEndDate TEXT;
+`
+
 export async function initDatabase() {
   if (process.env.DATABASE_URL) {
     await db.exec(pgSchema)
+    try { await db.exec(pgMigrations) } catch (e) { console.error('Migration error (non-fatal):', e) }
     await db.exec(seedSubscriptions)
   } else {
     const sqlite = db.raw() as any

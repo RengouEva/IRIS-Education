@@ -36,10 +36,8 @@ export default function Register() {
 
     setLoading(true)
     try {
-      const data = await api.register(firstname, lastname, email, password, role)
-      dispatch({ type: 'SET_USER', user: data.user })
-      dispatch({ type: 'LOGIN' })
-      navigate('/dashboard')
+      await api.register(firstname, lastname, email, password, role)
+      navigate('/login?registered=1')
     } catch (err: any) {
       setError(err.message || 'Une erreur est survenue lors de l\'inscription')
     } finally {

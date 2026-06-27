@@ -1,17 +1,19 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router'
-import { Sparkles, Eye, EyeOff } from 'lucide-react'
+import { useNavigate, useSearchParams, Link } from 'react-router'
+import { Sparkles, Check, Eye, EyeOff } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useStore } from '@/lib/store'
 
 export default function Login() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { dispatch } = useStore()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const registered = searchParams.get('registered')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -73,6 +75,12 @@ export default function Login() {
             <h1 className="text-h2 text-text-primary mb-1">Bon retour</h1>
             <p className="text-body-sm text-text-secondary">Connectez-vous à votre compte</p>
           </div>
+
+          {registered && (
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700 flex items-center gap-2">
+              <Check size={16} /> Compte créé avec succès. Vérifiez votre email pour activer votre compte.
+            </div>
+          )}
 
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
