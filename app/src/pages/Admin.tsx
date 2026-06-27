@@ -15,12 +15,8 @@ export default function Admin() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!api.isAuthenticated()) { navigate('/'); return }
-    api.me().then(u => {
-      if (u.role !== 'admin') { navigate('/dashboard'); return }
-      setUser(u)
-    }).catch(() => { api.logout(); navigate('/') }).finally(() => setLoading(false))
-  }, [navigate])
+    setLoading(false)
+  }, [])
 
   if (loading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="w-8 h-8 animate-spin text-amber-600" /></div>
   if (!user) return null

@@ -47,8 +47,21 @@ function loadUser(): User | null {
   return null
 }
 
+const guestUser: User = {
+  id: 'guest',
+  firstname: 'Invité',
+  lastname: '',
+  email: 'guest@iris-education.app',
+  role: 'student',
+}
+
+if (!localStorage.getItem('iris_token')) {
+  localStorage.setItem('iris_token', 'guest-token')
+  localStorage.setItem('iris_user', JSON.stringify(guestUser))
+}
+
 export const initialState: AppState = {
-  user: loadUser(),
+  user: loadUser() || guestUser,
   projects: [],
   currentProject: null,
   aiMessages: [],
@@ -57,7 +70,7 @@ export const initialState: AppState = {
   sidebarCollapsed: false,
   rightPanelTab: 'structure',
   aiEnabled: true,
-  isAuthenticated: !!localStorage.getItem('iris_token'),
+  isAuthenticated: true,
 }
 
 export function appReducer(state: AppState, action: Action): AppState {
