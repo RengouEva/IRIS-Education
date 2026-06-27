@@ -23,66 +23,81 @@ function convertSql(sql: string, params: any[]): string {
   return sql.replace(/\?/g, () => `$${++idx}`)
 }
 
-if (process.env.DATABASE_URL) {
-  const pg = await import('pg')
-  const pool = new pg.default.Pool({ connectionString: process.env.DATABASE_URL, max: 10 })
+const errorDb: Db = {
+  async get(_sql, ..._params) { throw new Error('Base de données non initialisée') },
+  async all(_sql, ..._params) { throw new Error('Base de données non initialisée') },
+  async run(_sql, ..._params) { throw new Error('Base de données non initialisée') },
+  async exec(_sql) { throw new Error('Base de données non initialisée') },
+  async transaction(_fn) { throw new Error('Base de données non initialisée') },
+  close() {},
+  raw() { return null },
+}
 
-  db = {
-    async get(sql, ...params) {
-      const res = await pool.query(convertSql(sql, params), params)
-      return res.rows[0] ?? null
-    },
-    async all(sql, ...params) {
-      const res = await pool.query(convertSql(sql, params), params)
-      return res.rows
-    },
-    async run(sql, ...params) {
-      const res = await pool.query(convertSql(sql, params), params)
-      return { rowCount: res.rowCount ?? 0 }
-    },
-    async exec(sql) { await pool.query(sql) },
-    async transaction(fn) {
-      const client = await pool.connect()
-      try {
-        await client.query('BEGIN')
-        await fn(client)
-        await client.query('COMMIT')
-      } catch (e) {
-        await client.query('ROLLBACK')
-        throw e
-      } finally { client.release() }
-    },
-    close() { pool.end() },
-    raw() { return pool },
+try {
+  if (process.env.DATABASE_URL) {
+    const { default: PGPool } = await import('pg')
+    const pool = new PGPool({ connectionString: process.env.DATABASE_URL, max: 10 })
+
+    db = {
+      async get(sql, ...params) {
+        const res = await pool.query(convertSql(sql, params), params)
+        return res.rows[0] ?? null
+      },
+      async all(sql, ...params) {
+        const res = await pool.query(convertSql(sql, params), params)
+        return res.rows
+      },
+      async run(sql, ...params) {
+        const res = await pool.query(convertSql(sql, params), params)
+        return { rowCount: res.rowCount ?? 0 }
+      },
+      async exec(sql) { await pool.query(sql) },
+      async transaction(fn) {
+        const client = await pool.connect()
+        try {
+          await client.query('BEGIN')
+          await fn(client)
+          await client.query('COMMIT')
+        } catch (e) {
+          await client.query('ROLLBACK')
+          throw e
+        } finally { client.release() }
+      },
+      close() { pool.end() },
+      raw() { return pool },
+    }
+  } else {
+    const { default: Database } = await import('better-sqlite3')
+
+    const sqliteDb = new Database(path.join(__dirname, '..', 'data.db'))
+    sqliteDb.pragma('journal_mode = WAL')
+    sqliteDb.pragma('foreign_keys = ON')
+    sqliteDb.function('NOW', () => new Date().toISOString())
+    sqliteDb.aggregate('STRING_AGG', {
+      start: '',
+      step: (acc: any, value: any, separator: any) => acc ? `${acc}${separator || ', '}${value}` : String(value),
+      finalize: (acc: any) => acc,
+    } as any)
+
+    db = {
+      get(sql: string, ...params: any[]) { return Promise.resolve(sqliteDb.prepare(sql).get(...(params.length ? params : [])) ?? null) },
+      all(sql: string, ...params: any[]) { return Promise.resolve(sqliteDb.prepare(sql).all(...(params.length ? params : []))) },
+      run(sql: string, ...params: any[]) {
+        const info = sqliteDb.prepare(sql).run(...(params.length ? params : []))
+        return Promise.resolve({ changes: info.changes })
+      },
+      exec(sql) { sqliteDb.exec(sql); return Promise.resolve() },
+      async transaction(fn) {
+        const txn = sqliteDb.transaction(fn)
+        txn()
+      },
+      close() { sqliteDb.close() },
+      raw() { return sqliteDb },
+    }
   }
-} else {
-  const Database = (await import('better-sqlite3')).default
-
-  const sqliteDb = new Database(path.join(__dirname, '..', 'data.db'))
-  sqliteDb.pragma('journal_mode = WAL')
-  sqliteDb.pragma('foreign_keys = ON')
-  sqliteDb.function('NOW', () => new Date().toISOString())
-  sqliteDb.aggregate('STRING_AGG', {
-    start: '',
-    step: (acc: any, value: any, separator: any) => acc ? `${acc}${separator || ', '}${value}` : String(value),
-    finalize: (acc: any) => acc,
-  } as any)
-
-  db = {
-    get(sql: string, ...params: any[]) { return Promise.resolve(sqliteDb.prepare(sql).get(...(params.length ? params : [])) ?? null) },
-    all(sql: string, ...params: any[]) { return Promise.resolve(sqliteDb.prepare(sql).all(...(params.length ? params : []))) },
-    run(sql: string, ...params: any[]) {
-      const info = sqliteDb.prepare(sql).run(...(params.length ? params : []))
-      return Promise.resolve({ changes: info.changes })
-    },
-    exec(sql) { sqliteDb.exec(sql); return Promise.resolve() },
-    async transaction(fn) {
-      const txn = sqliteDb.transaction(fn)
-      txn()
-    },
-    close() { sqliteDb.close() },
-    raw() { return sqliteDb },
-  }
+} catch (err) {
+  console.error('Database initialization error:', err)
+  db = errorDb
 }
 
 const pgSchema = `
