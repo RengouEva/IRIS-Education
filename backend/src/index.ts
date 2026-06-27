@@ -1,11 +1,10 @@
 import express from 'express'
-import db from './database.js'
+import db, { initDatabase, isDbInitialized, getDbStatus } from './database.js'
 import cors from 'cors'
 import helmet from 'helmet'
 import rateLimit from 'express-rate-limit'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { initDatabase } from './database.js'
 import multer from 'multer'
 import { uploadFile, isUsingBlob, getLocalUploadsPath } from './storage.js'
 
@@ -110,6 +109,24 @@ app.get('/api/health', async (_req, res) => {
   } catch (err: any) {
     res.json({ status: 'degraded', db: 'disconnected', error: err?.message || String(err), timestamp: new Date().toISOString() })
   }
+})
+
+app.get('/api/debug', async (_req, res) => {
+  const status = getDbStatus()
+  let dbCheck = 'untested'
+  try {
+    const result = await db.get('SELECT 1 as alive')
+    dbCheck = result?.alive === 1 ? 'connected' : 'error'
+  } catch (err: any) {
+    dbCheck = `error: ${err?.message || String(err)}`
+  }
+  res.json({
+    node: process.version,
+    env: process.env.NODE_ENV || 'not set',
+    vercel: process.env.VERCEL || 'not set',
+    db: { ...status, initialized: isDbInitialized(), query: dbCheck },
+    memory: process.memoryUsage ? `${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB` : 'unknown',
+  })
 })
 
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

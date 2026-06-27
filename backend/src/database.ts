@@ -15,13 +15,15 @@ interface Db {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-let db: Db
-
 function convertSql(sql: string, params: any[]): string {
   if (params.length === 0) return sql
   let idx = 0
   return sql.replace(/\?/g, () => `$${++idx}`)
 }
+
+let _dbInitialized = false
+export function isDbInitialized() { return _dbInitialized }
+export function getDbStatus() { return { initialized: _dbInitialized, url: process.env.DATABASE_URL ? 'set' : 'not set' } }
 
 function makeErrorDb(): Db {
   return {
@@ -35,10 +37,13 @@ function makeErrorDb(): Db {
   }
 }
 
-if (process.env.DATABASE_URL) {
+let db: Db = makeErrorDb()
+
+if (process.env.DATABASE_URL && process.env.DATABASE_URL.trim()) {
   try {
+    console.log('Database: connecting to PostgreSQL...')
     const pg = await import('pg') as any
-    const pool = new pg.default.Pool({ connectionString: process.env.DATABASE_URL, max: 10 })
+    const pool = new pg.default.Pool({ connectionString: process.env.DATABASE_URL, max: 5, connectionTimeoutMillis: 10000 })
 
     db = {
       async get(sql, ...params) {
@@ -68,14 +73,21 @@ if (process.env.DATABASE_URL) {
       close() { pool.end() },
       raw() { return pool },
     }
+    _dbInitialized = true
+    console.log('Database: PostgreSQL connected')
   } catch (err) {
     console.error('Database initialization error (pg):', err)
     db = makeErrorDb()
   }
+} else if (process.env.DATABASE_URL && !process.env.DATABASE_URL.trim()) {
+  console.error('Database: DATABASE_URL is empty string')
 } else {
+  console.log('Database: DATABASE_URL not set, local dev mode')
+}
+
+if (!_dbInitialized && !process.env.DATABASE_URL) {
   try {
     const Database = (await import('better-sqlite3')).default as any
-
     const sqliteDb = new Database(path.join(__dirname, '..', 'data.db'))
     sqliteDb.pragma('journal_mode = WAL')
     sqliteDb.pragma('foreign_keys = ON')
@@ -101,6 +113,8 @@ if (process.env.DATABASE_URL) {
       close() { sqliteDb.close() },
       raw() { return sqliteDb },
     }
+    _dbInitialized = true
+    console.log('Database: SQLite connected')
   } catch (err) {
     console.error('Database initialization error (sqlite):', err)
     db = makeErrorDb()
@@ -362,15 +376,6 @@ const sqliteSchema = `
   );
 `
 
-const seedSubscriptions = `
-  INSERT INTO subscriptions (id, name, price, duration, features, description)
-  VALUES
-    ('free', 'Gratuit', 0, 9999, '{"projects": 1, "ai_credits": 5, "exports": false}', '1 projet, 5 crédits IA'),
-    ('basic', 'Basique', 5000, 30, '{"projects": 5, "ai_credits": 50, "exports": true}', '5 projets, 50 crédits IA, export PDF/Word'),
-    ('premium', 'Premium', 10000, 30, '{"projects": -1, "ai_credits": -1, "exports": true}', 'Projets illimités, IA illimitée, export + prioritaire')
-  ON CONFLICT (name) DO NOTHING;
-`
-
 const pgMigrations = `
   ALTER TABLE users ADD COLUMN IF NOT EXISTS emailVerified INTEGER NOT NULL DEFAULT 0;
   ALTER TABLE users ADD COLUMN IF NOT EXISTS verificationToken TEXT;
@@ -381,8 +386,22 @@ const pgMigrations = `
   ALTER TABLE users ADD COLUMN IF NOT EXISTS subscriptionEndDate TEXT;
 `
 
+const seedSubscriptions = `
+  INSERT INTO subscriptions (id, name, price, duration, features, description)
+  VALUES
+    ('free', 'Gratuit', 0, 9999, '{"projects": 1, "ai_credits": 5, "exports": false}', '1 projet, 5 crédits IA'),
+    ('basic', 'Basique', 5000, 30, '{"projects": 5, "ai_credits": 50, "exports": true}', '5 projets, 50 crédits IA, export PDF/Word'),
+    ('premium', 'Premium', 10000, 30, '{"projects": -1, "ai_credits": -1, "exports": true}', 'Projets illimités, IA illimitée, export + prioritaire')
+  ON CONFLICT (name) DO NOTHING;
+`
+
 export async function initDatabase() {
-  if (process.env.DATABASE_URL) {
+  if (!_dbInitialized) {
+    console.log('Database init skipped — no database available')
+    return
+  }
+  console.log('Database init: running schema...')
+  if (process.env.DATABASE_URL && process.env.DATABASE_URL.trim()) {
     await db.exec(pgSchema)
     try { await db.exec(pgMigrations) } catch (e) { console.error('Migration error (non-fatal):', e) }
     await db.exec(seedSubscriptions)
@@ -405,6 +424,7 @@ export async function initDatabase() {
         ('premium', 'Premium', 10000, 30, '{"projects": -1, "ai_credits": -1, "exports": true}', 'Projets illimités, IA illimitée, export + prioritaire')`)
     } catch {}
   }
+  console.log('Database init complete')
 }
 
 export default db
