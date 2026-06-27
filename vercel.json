@@ -4,11 +4,5 @@
   "installCommand": "npm install && cd app && npm install && cd ../backend && npm install",
   "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/index.html" }
-  ],
-  "functions": {
-    "api/index.js": {
-      "maxDuration": 30,
-      "memory": 512
-    }
-  }
+  ]
 }
