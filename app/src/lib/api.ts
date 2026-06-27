@@ -89,7 +89,7 @@ export const api = {
   },
 
   async register(firstname: string, lastname: string, email: string, password: string, role?: string, universityId?: string) {
-    return request<{ message: string }>('/auth/register', {
+    return request<{ message: string; autoVerified?: boolean }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify({ firstname, lastname, email, password, role, universityId }),
     })

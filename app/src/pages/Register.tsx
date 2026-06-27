@@ -36,8 +36,12 @@ export default function Register() {
 
     setLoading(true)
     try {
-      await api.register(firstname, lastname, email, password, role)
-      navigate('/login?registered=1')
+      const data = await api.register(firstname, lastname, email, password, role)
+      if (data.autoVerified) {
+        navigate('/login?auto=1')
+      } else {
+        navigate('/login?registered=1')
+      }
     } catch (err: any) {
       setError(err.message || 'Une erreur est survenue lors de l\'inscription')
     } finally {

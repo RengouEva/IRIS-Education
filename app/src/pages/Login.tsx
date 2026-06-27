@@ -14,6 +14,7 @@ export default function Login() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const registered = searchParams.get('registered')
+  const autoVerified = searchParams.get('auto')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -79,6 +80,11 @@ export default function Login() {
           {registered && (
             <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700 flex items-center gap-2">
               <Check size={16} /> Compte créé avec succès. Vérifiez votre email pour activer votre compte.
+            </div>
+          )}
+          {autoVerified && (
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700 flex items-center gap-2">
+              <Check size={16} /> Compte créé avec succès. Vous pouvez vous connecter.
             </div>
           )}
 

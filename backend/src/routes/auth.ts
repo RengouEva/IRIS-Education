@@ -47,20 +47,35 @@ router.post('/register', async (req: Request, res: Response) => {
 
     const id = crypto.randomUUID()
     const hashed = bcrypt.hashSync(password, 10)
-    const verificationToken = crypto.randomBytes(32).toString('hex')
-    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+    const smtpConfigured = !!(process.env.SMTP_USER && process.env.SMTP_PASS)
 
-    await db.run(
-      `INSERT INTO users (id, firstname, lastname, email, password, role, universityId, emailVerified, verificationToken, verificationTokenExpires)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
-      id, firstname, lastname, email, hashed, role, universityId || null, verificationToken, expires
-    )
+    if (smtpConfigured) {
+      const verificationToken = crypto.randomBytes(32).toString('hex')
+      const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
 
-    await sendVerificationEmail(email, verificationToken, firstname)
+      await db.run(
+        `INSERT INTO users (id, firstname, lastname, email, password, role, universityId, emailVerified, verificationToken, verificationTokenExpires)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
+        id, firstname, lastname, email, hashed, role, universityId || null, verificationToken, expires
+      )
 
-    res.status(201).json({
-      message: 'Inscription réussie. Veuillez vérifier votre email pour activer votre compte.',
-    })
+      sendVerificationEmail(email, verificationToken, firstname).catch(() => {})
+
+      res.status(201).json({
+        message: 'Inscription réussie. Veuillez vérifier votre email pour activer votre compte.',
+      })
+    } else {
+      await db.run(
+        `INSERT INTO users (id, firstname, lastname, email, password, role, universityId, emailVerified)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
+        id, firstname, lastname, email, hashed, role, universityId || null
+      )
+
+      res.status(201).json({
+        message: 'Inscription réussie.',
+        autoVerified: true,
+      })
+    }
   } catch (err) {
     console.error('Register error:', err)
     res.status(500).json({ error: 'Erreur serveur. Veuillez réessayer.' })
