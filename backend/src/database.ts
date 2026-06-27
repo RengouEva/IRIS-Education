@@ -35,8 +35,8 @@ const errorDb: Db = {
 
 try {
   if (process.env.DATABASE_URL) {
-    const { default: PGPool } = await import('pg')
-    const pool = new PGPool({ connectionString: process.env.DATABASE_URL, max: 10 })
+    const pg = await import('pg')
+    const pool = new pg.default.Pool({ connectionString: process.env.DATABASE_URL, max: 10 })
 
     db = {
       async get(sql, ...params) {
